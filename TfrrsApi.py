@@ -1,5 +1,7 @@
 import pandas as pd
 import requests
+import re
+from numpy import arange
 from bs4 import BeautifulSoup
 
 def main():
@@ -11,10 +13,15 @@ def main():
 
         #Get athlete info
         info = getAthleteInfo(HTML)
-        print(info)
+        #print(info)
 
+        #Get Personal Records
+        PRs = getPersonalRecords(HTML)
+        #print(PRs)
+
+        #Get meet information
         dfs = pd.read_html(HTML, header=0)
-        cleanupDataframe(dfs[1])
+        #parseDataframe(dfs[1])
 
     else:
         print("Error {} occured".format(response.status_code))
@@ -34,19 +41,24 @@ def getAthleteInfo(HTML):
     
     return athleteInfo
 
+def getPersonalRecords(HTML):
+    return "Hi"
 
-def cleanupDataframe(df):
+def parseDates(Date):
+    if "-" in Date:
+        days = Date[Date.index(" ")+1:Date.index(",")]
+        Date = Date.replace(days, "").split(",")
+        return Date[0] + days.split("-")[0] + "," + Date[1], Date[0] + days.split("-")[1] + "," + Date[1]
+    else:
+        return Date, Date
+
+def parseDataframe(df):
+    #Get meet information
     Meet, Date = df.columns[0].split("  ")
-    #print(Meet)
-    #print(Date)
+    startDate, endDate = parseDates(Date)
 
-    #Add a column and rename columns
-    finalOrPrelim = []
-    for i in range(df.shape[0]):
-        finalOrPrelim += "N"
-    finalOrPrelim = pd.DataFrame(finalOrPrelim)
-    
-    df = pd.concat([df, finalOrPrelim], axis=1)
+    #Add a column and rename columns    
+    df = pd.concat([df, pd.DataFrame(arange(df.shape[0]).transpose())], axis=1)
     df.columns = ["Event", "Mark", "Place", "Round"]
 
     #Settle columns
@@ -54,8 +66,7 @@ def cleanupDataframe(df):
     df["Place"] = [row[0:len(row)-4] for row in df["Place"]]
     df["Mark"]  = [row[0:row.index("m")] if "m" in row else row for row in df["Mark"]]
     
-    print()
-    print(df)
+    #print(df)
 
 if __name__ == '__main__':
     main()
