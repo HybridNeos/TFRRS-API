@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
-from numpy import arange
+from EventSwitcher import EventSwitcher
+from numpy import arange, empty
 from bs4 import BeautifulSoup
 
 class TfrrsApi:
@@ -32,14 +33,17 @@ class TfrrsApi:
             info = self.getAthleteInfo()
             #print(info)
 
-            #Get Personal Records
-            PRs = self.getPersonalRecords()
-            #print(PRs)
+            #Read the html data tables and prepare the event parser
+            dfs = pd.read_html(self.HTML)
+            self.resultsHandler = EventSwitcher()
 
-            #Get meet information
-            dfs = pd.read_html(self.HTML, header=0)
-            df = self.parseDataframe(dfs[1])
-            #print(df)
+            #prs
+            #PRs = self.parsePersonalRecords(dfs[0])
+            #print(PRs, end=)
+
+            #meet results
+            df = self.parseMeetResult(dfs[1])
+            print(df)
 
         else:
             raise Exception("No HTML loaded")
@@ -59,9 +63,6 @@ class TfrrsApi:
         
         return athleteInfo
 
-    def getPersonalRecords(self):
-        return "Hi"
-
     def parseDates(self, Date):
         if "-" in Date:
             days = Date[Date.index(" ")+1:Date.index(",")]
@@ -70,7 +71,36 @@ class TfrrsApi:
         else:
             return Date, Date
 
-    def parseDataframe(self, df):
+    def parseEventMark(self, eventType, mark):
+        switch(eventType) 
+
+    def parsePersonalRecords(self, df):
+        #Create the np array to fill in
+        numLeft = sum(pd.notnull(df.iloc[:,0]))
+        numRight = sum(pd.notnull(df.iloc[:,2]))
+        numEvents = numLeft + numRight
+        PRs = empty([numEvents, 2], dtype=object)
+
+        #Fill in the array
+        for i in range(0, df.shape[0]):
+            PRs[i, 0] = df.iloc[i, 0]
+            PRs[i, 1] = df.iloc[i, 1]
+
+            if pd.notnull(df.iloc[i, 2]):
+                PRs[i+numLeft, 0] = df.iloc[i, 2]
+                PRs[i+numLeft, 1] = df.iloc[i, 3]
+        
+        #Convert to dataframe
+        PRs = pd.DataFrame(PRs)
+        PRs.columns = ["Event", "Mark"]
+
+        #Clean up marks
+        PRs["Mark"] = PRs["Mark"].apply(lambda mark: self.resultsHandler.parseEventMark(PRs["Event"][PRs[PRs["Mark"]==mark].index.item()], mark))
+
+        return PRs
+
+
+    def parseMeetResult(self, df):
         #Get meet information
         Meet, Date = df.columns[0].split("  ")
         startDate, endDate = self.parseDates(Date)
@@ -82,10 +112,11 @@ class TfrrsApi:
         #Settle columns
         df["Round"] = ["F" if "(F)" in row else "P" for row in df["Place"]]
         df["Place"] = [row[0:len(row)-4] for row in df["Place"]]
-        df["Mark"]  = [row[0:row.index("m")] if "m" in row else row for row in df["Mark"]]
+        df["Mark"] = df["Mark"].apply(lambda mark: self.resultsHandler.parseEventMark(df["Event"][df[df["Mark"]==mark].index.item()], mark))
         
         return df
 
 if __name__ == '__main__':
     Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
+    #Test = TfrrsApi("5462222", "LORAS", "Audrey Miller")
     Test.parse()
