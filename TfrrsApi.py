@@ -1,5 +1,8 @@
 import pandas as pd
 import requests
+import json
+from collections import OrderedDict
+from pprint import PrettyPrinter
 from EventSwitcher import EventSwitcher
 from numpy import arange, empty
 from bs4 import BeautifulSoup
@@ -29,21 +32,29 @@ class TfrrsApi:
 
     def parse(self):
         if self.HTML:
-            #Get athlete info
-            info = self.getAthleteInfo()
-            #print(info)
-
-            #Read the html data tables and prepare the event parser
+            #Setup
             dfs = pd.read_html(self.HTML)
             self.resultsHandler = EventSwitcher()
+            data = OrderedDict()
 
-            #prs
+            #Get athlete info
+            info = self.getAthleteInfo()
+            data["Name"] = info[0]
+            data["Grade"] = info[1]
+            data["Year"] = info[2]
+            data["School"] = info[3]
+
+            #PRs
             PRs = self.parsePersonalRecords(dfs[0])
-            #print(PRs, end=)
+            data["College Bests"] = PRs.set_index("Event").to_dict()["Mark"]
 
-            #meet results
+            #Meet results
             #df = self.parseMeetResult(dfs[2])
             #print(df)
+
+            #Return
+            pp = PrettyPrinter(indent=4)
+            pp.pprint(data)
 
         else:
             raise Exception("No HTML loaded")
