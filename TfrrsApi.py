@@ -1,10 +1,10 @@
 import pandas as pd
 import requests
 import json
+import re
 from collections import OrderedDict
 from pprint import PrettyPrinter
-from EventSwitcher import EventSwitcher
-from numpy import arange, empty
+from numpy import empty
 from bs4 import BeautifulSoup
 
 class TfrrsApi:
@@ -27,37 +27,37 @@ class TfrrsApi:
             self.HTML = response.text.replace("colspan=\"100%\"", "colspan=\"3\"")
 
         else:
-            self.HTML = ""
+            self.HTML = None
             raise Exception("Could not retrieve", response.status_code)
 
     def parse(self):
         if self.HTML:
             #Setup
             dfs = pd.read_html(self.HTML)
-            self.resultsHandler = EventSwitcher()
-            data = OrderedDict()
+            self.data = OrderedDict()
 
             #Get athlete info
-            info = self.getAthleteInfo()
-            data["Name"] = info[0]
-            data["Grade"] = info[1]
-            data["Year"] = info[2]
-            data["School"] = info[3]
+            self.getAthleteInfo()
 
             #PRs
-            PRs = self.parsePersonalRecords(dfs[0])
-            data["College Bests"] = PRs.set_index("Event").to_dict()["Mark"]
-
+            self.parsePersonalRecords(dfs[0])
+            
             #Meet results
-            #df = self.parseMeetResult(dfs[2])
-            #print(df)
+            # More than meet results are read in. Use regex to read in only meet results (they have a date while others don't)
+            self.data["Meet Results"] = OrderedDict()
+            #self.dateRegex = "[A-Z][a-z]{2} \d{1,2},|[A-z][a-z]{2} \d{1,2}-\d{1,2},|\d\d/\d\d -|[a-zA-Z]{3}"
+
+            self.dateRegex = "[A-Z][a-z]{2} \d{1,2}(-\d{1,2}){0,1},"
+            #firstNonResult = [True if (re.search(self.dateRegex, df.columns[0])) else False for df in dfs[1:]].index(False) + 1
+            firstNonResult = 2
+            for df in dfs[1:firstNonResult]:
+                self.parseMeetResult(df)
 
             #Return
-            pp = PrettyPrinter(indent=4)
-            pp.pprint(data)
+            return json.dumps(self.data, indent=4)
 
         else:
-            raise Exception("No HTML loaded")
+            raise Exception("No HTML loaded. Retry constructor with a different ID")
 
     def getAthleteInfo(self):
         #Use beautifulsoup to find the proper section and extract the text
@@ -72,18 +72,39 @@ class TfrrsApi:
         athleteInfo[1] = grade[1:3]
         athleteInfo[2] = year[0:1]
 
-        return athleteInfo
+        #Put it into data
+        self.data["Name"] = athleteInfo[0]
+        self.data["Grade"] = athleteInfo[1]
+        self.data["Year"] = athleteInfo[2]
+        self.data["School"] = athleteInfo[3]
 
     def parseDates(self, Date):
-        if "-" in Date:
-            days = Date[Date.index(" ")+1:Date.index(",")]
-            Date = Date.replace(days, "").split(",")
-            return Date[0] + days.split("-")[0] + "," + Date[1], Date[0] + days.split("-")[1] + "," + Date[1]
+        if "/" in Date:
+            def chunkToFormat(chunk):
+                month, day = chunk.split("/")
+                numToMonth = {"01":"Jan", "02":"Feb", "03":"Mar", "04":"Apr", "05":"May", "06":"Jun", "07":"Jul", "08":"Aug", "09":"Sep", "10":"Oct", "11":"Nov", "12":"Dec"}
+                month = numToMonth[month]
+                return month + " " + day
+
+            dashIndex = Date.index("-")
+            year = Date[-4:]
+            chunk = Date[:dashIndex-1]
+            return chunkToFormat(chunk)+", "+year, Date[dashIndex+2:]
+
+        elif "-" in Date:
+            Month = Date[:Date.index(" ")]
+            Year = Date[-4:]
+            Days = Date.split(" ")[1].replace(",", "").split("-")
+            return Month+" "+Days[0]+", "+Year, Month+" "+Days[1]+", "+Year
+
         else:
             return Date, Date
 
     def parseEventMark(self, eventType, mark):
-        switch(eventType)
+        if (eventType in ["SP", "DT", "HT", "WT", "JT"]):
+            return mark if mark.isalpha() else mark.split(" ")[0]
+        else:
+            return mark
 
     def parsePersonalRecords(self, df):
         #Create the np array to fill in
@@ -105,30 +126,49 @@ class TfrrsApi:
         PRs = pd.DataFrame(PRs)
         PRs.columns = ["Event", "Mark"]
 
-        #Clean up marks
-        PRs["Mark"] = PRs["Mark"].apply(lambda mark: self.resultsHandler.parseEventMark(PRs["Event"][PRs[PRs["Mark"]==mark].index.item()], mark))
+        #Clean up the dataframe
+        PRs["Mark"] = PRs["Mark"].apply(lambda mark: self.parseEventMark(PRs["Event"][PRs[PRs["Mark"]==mark].index.item()], mark))
+        PRs.set_index("Event", inplace=True)
 
-        return PRs
-
+        #Put it into data
+        #  ["Mark"] used since column name persists
+        self.data["College Bests"] = PRs.to_dict()["Mark"]
 
     def parseMeetResult(self, df):
-        #Get meet information
-        Meet, Date = df.columns[0].split("  ")
+        #Get meet name and date
+        dateStart = re.search(self.dateRegex, df.columns[0]).start()
+        Meet = df.columns[0][:dateStart].rstrip()
+        Date = df.columns[0][dateStart:]
         startDate, endDate = self.parseDates(Date)
 
+        #JSON the meet info
+        meetInfo = OrderedDict()
+        meetInfo["Meet Name"] = Meet
+        meetInfo["Start Date"] = startDate
+        meetInfo["End Date"] = endDate
+
         #Add a column and rename columns
-        df = pd.concat([df, pd.DataFrame(arange(df.shape[0]).transpose())], axis=1)
+        df = pd.concat([df, pd.DataFrame(empty([df.shape[0], 1], dtype=object))], axis=1)
         df.columns = ["Event", "Mark", "Place", "Round"]
 
         #Settle columns
-        df["Mark"] = df["Mark"].apply(lambda mark: self.resultsHandler.parseEventMark(df["Event"][df[df["Mark"]==mark].index.item()], mark))
+        df["Mark"] = df["Mark"].apply(lambda mark: self.parseEventMark(df["Event"][df[df["Mark"]==mark].index.item()], mark))
         df["Place"] = df["Place"].fillna("N/A")
         df["Round"] = ["F" if "(F)" in row else ( "P" if "(P)" in row else "N/A") for row in df["Place"]]
         df["Place"] = [row if row == "N/A" else row[0:len(row)-4] for row in df["Place"]]
+        df.set_index("Event", inplace=True)
 
-        return df
+        #JSON to meet results
+        meetInfo["Results"] = OrderedDict()
+        for i in range(0, df.shape[0]):
+            meetInfo["Results"][df.index[i]] = df.iloc[i,:].to_list()
+
+        #add into data
+        self.data["Meet Results"][startDate] = meetInfo
 
 if __name__ == '__main__':
     Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
+    #Test = TfrrsApi("6092256", "RPI", "Patrick Butler")
     #Test = TfrrsApi("5462222", "LORAS", "Audrey Miller")
-    Test.parse()
+    #out = Test.parse()
+    #print(out)
