@@ -52,21 +52,26 @@ class TfrrsApi:
             return json.dumps(self.data, indent=4)
 
         else:
-            raise Exception("No HTML loaded. Retry constructor with a different ID")
+            raise Exception("No HTML loaded. Retry with a different ID")
 
     def getMeetIds(self):
         soup = BeautifulSoup(self.HTML, "html5lib")
-        links = soup.find_all('a')
+        links = soup.find_all("a")
         IDs = []
 
         # Pull the meet ID from href URLs
         for link in links:
-            if re.search("href=\"//www.tfrrs.org/results/\d{5,6}/\w+_", str(link)):
+            if re.search('href="//www.tfrrs.org/results/\d{5,6}/\w+_', str(link)):
                 link = str(link)
-                idStart = re.search("/results/\d{5,6}/", link).start() + len("/results/")
-                IDs += [link[idStart:idStart+5]]
+                idStart = re.search("/results/\d{5,6}/", link).start() + len(
+                    "/results/"
+                )
+                IDs += [link[idStart : idStart + 5]]
 
         return IDs
+
+    def notCrossCountry(self, df):
+        return "K" not in str(df.iloc[0,0])
 
     def parseOneMeet(self, df, ID):
         # Get meet name and date
@@ -102,6 +107,7 @@ class TfrrsApi:
             row if row == "N/A" else row[0 : len(row) - 4] for row in df["Place"]
         ]
         df.set_index("Event", inplace=True)
+        df.index = [str(event) for event in df.index]
 
         # JSON to meet results
         meetInfo["Results"] = OrderedDict()
@@ -129,8 +135,9 @@ class TfrrsApi:
 
         # Loop
         for df in dfs[1:firstNonResult]:
-            self.parseOneMeet(df, IDs[i])
-            i += 1
+            if self.notCrossCountry(df):
+                self.parseOneMeet(df, IDs[i])
+                i += 1
 
     def getAthleteInfo(self):
         # Use beautifulsoup to find the proper section and extract the text
@@ -142,13 +149,14 @@ class TfrrsApi:
             .strip()
         )
         athleteInfo = " ".join(athleteInfo.split())
+        athleteInfo = athleteInfo.replace("RED SHIRT", "REDSHIRT")
 
         # Format the text into a usable list
         athleteInfo = athleteInfo.split()
         athleteInfo[0] = athleteInfo[0] + " " + athleteInfo[1]
-        grade, year = athleteInfo[2].split("-")
-        athleteInfo[1] = grade[1:3]
-        athleteInfo[2] = year[0:1]
+        grade, year = athleteInfo[2].split("/") if "REDSHIRT" in athleteInfo[2] else athleteInfo[2].split("-")
+        athleteInfo[1] = grade[1:]
+        athleteInfo[2] = year[:-1]
 
         # Put it into data
         self.data["Name"] = athleteInfo[0]
@@ -196,7 +204,7 @@ class TfrrsApi:
             return Date, Date
 
     def parseEventMark(self, eventType, mark):
-        if eventType in ["SP", "DT", "HT", "WT", "JT"]:
+        if eventType in ["SP", "DT", "HT", "WT", "JT", "LJ", "TJ"]:
             return mark if mark.isalpha() else mark.split(" ")[0]
         else:
             return mark
@@ -227,18 +235,20 @@ class TfrrsApi:
                 PRs["Event"][PRs[PRs["Mark"] == mark].index.item()], mark
             )
         )
+
+        # Remove XC PRs
         PRs.set_index("Event", inplace=True)
+        XC = list(filter(lambda event: "XC" in event, PRs.index))
+        PRs.drop(XC, inplace=True)
 
         # Put it into data
         #   ["Mark"] used since column name persists
         self.data["College Bests"] = PRs.to_dict()["Mark"]
 
-    
-
 
 if __name__ == "__main__":
-    Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
-    # Test = TfrrsApi("6092256", "RPI", "Patrick Butler")
-    # Test = TfrrsApi("5462222", "LORAS", "Audrey Miller")
+    #Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
+    #Test = TfrrsApi("6092256", "RPI", "Patrick Butler")
+    Test = TfrrsApi("5997832", "RPI", "Alex Skender")
     out = Test.parse()
     print(out)
