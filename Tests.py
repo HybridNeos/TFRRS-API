@@ -1,4 +1,4 @@
-from TfrrsApi import TfrrsApi
+from AthleteTfrrs import Athlete, Athlete
 import unittest
 
 class TestTfrrsApi(unittest.TestCase):
@@ -6,7 +6,7 @@ class TestTfrrsApi(unittest.TestCase):
     #With invalid arguments should raise an exception
     def test_urlException(self):
         try:
-            Test1 = TfrrsApi("60924888", "Nowhere", "No one")
+            Test1 = Athlete("60924888", "Nowhere", "No one")
             self.assertEqual(1, 2)
         except:
             self.assertEqual(1, 1)
@@ -14,7 +14,7 @@ class TestTfrrsApi(unittest.TestCase):
     #With all arguments check for correct url, no exception, and HTML loaded
     def test_urlAllArguments(self):
         try:
-            Test2 = TfrrsApi("6092422", "RPI", "Mark Shapiro")
+            Test2 = Athlete("6092422", "RPI", "Mark Shapiro")
             self.assertEqual(Test2.url, "https://www.tfrrs.org/athletes/6092422/RPI/Mark_Shapiro.html")
             self.assertTrue(Test2.HTML)
         except:
@@ -22,7 +22,7 @@ class TestTfrrsApi(unittest.TestCase):
 
     def test_urlJustId(self):
         try:
-            Test3 = TfrrsApi("6092422")
+            Test3 = Athlete("6092422")
             self.assertTrue(Test3.HTML)
         except:
             self.assertEqual(1, 2)

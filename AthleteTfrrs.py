@@ -3,26 +3,23 @@ import requests
 import json
 import re
 from collections import OrderedDict
-from pprint import PrettyPrinter
 from numpy import empty
 from bs4 import BeautifulSoup
 
-
-class TfrrsApi:
+class Athlete:
     def __init__(self, ID, school="", name=""):
-        self.url = "https://www.tfrrs.org/athletes/" + ID + "/"
+        # Make the URL
+        url = "https://www.tfrrs.org/athletes/" + ID + "/"
         if school:
-            self.url += school + "/"
+            url += school + "/"
         if name:
-            self.url += name.replace(" ", "_") + ".html"
-        self.retrieve()
+            url += name.replace(" ", "_") + ".html"
 
-    def retrieve(self):
-        # Make the request
+        # Get the response
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.102 Safari/537.36"
         }
-        response = requests.get(self.url, headers=headers)
+        response = requests.get(url, headers=headers)
 
         # Handle the response
         if response.status_code < 300 and response.status_code >= 200:
@@ -248,10 +245,12 @@ class TfrrsApi:
         #   ["Mark"] used since column name persists
         self.data["College Bests"] = PRs.to_dict()["Mark"]
 
+def AthleteTfrrs(ID, School=None, Name=None):
+    AthleteResults = Athlete(ID, School, Name)
+    return AthleteResults.parse()
 
 if __name__ == "__main__":
-    Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
-    # Test = TfrrsApi("6092256", "RPI", "Patrick Butler")
-    # Test = TfrrsApi("5997832", "RPI", "Alex Skender")
-    out = Test.parse()
-    print(out)
+    # Test = AthleteTfrrs("6092422", "RPI", "Mark Shapiro")
+    # Test = AthleteTfrrs("6092256", "RPI", "Patrick Butler")
+    Test = AthleteTfrrs("5997832", "RPI", "Alex Skender")
+    print(Test)
