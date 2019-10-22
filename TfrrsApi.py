@@ -38,6 +38,7 @@ class TfrrsApi:
             # Setup
             dfs = pd.read_html(self.HTML)
             self.data = OrderedDict()
+            self.soup = BeautifulSoup(self.HTML, "html5lib")
 
             # Get athlete info
             self.getAthleteInfo()
@@ -55,8 +56,7 @@ class TfrrsApi:
             raise Exception("No HTML loaded. Retry with a different ID")
 
     def getMeetIds(self):
-        soup = BeautifulSoup(self.HTML, "html5lib")
-        links = soup.find_all("a")
+        links = self.soup.find_all("a")
         IDs = []
 
         # Pull the meet ID from href URLs
@@ -71,7 +71,7 @@ class TfrrsApi:
         return IDs
 
     def notCrossCountry(self, df):
-        return "K" not in str(df.iloc[0,0])
+        return "K" not in str(df.iloc[0, 0])
 
     def parseOneMeet(self, df, ID):
         # Get meet name and date
@@ -141,9 +141,8 @@ class TfrrsApi:
 
     def getAthleteInfo(self):
         # Use beautifulsoup to find the proper section and extract the text
-        soup = BeautifulSoup(self.HTML, "html5lib")
         athleteInfo = (
-            soup.find("div", class_="panel-heading")
+            self.soup.find("div", class_="panel-heading")
             .get_text()
             .replace("\n", "")
             .strip()
@@ -154,7 +153,11 @@ class TfrrsApi:
         # Format the text into a usable list
         athleteInfo = athleteInfo.split()
         athleteInfo[0] = athleteInfo[0] + " " + athleteInfo[1]
-        grade, year = athleteInfo[2].split("/") if "REDSHIRT" in athleteInfo[2] else athleteInfo[2].split("-")
+        grade, year = (
+            athleteInfo[2].split("/")
+            if "REDSHIRT" in athleteInfo[2]
+            else athleteInfo[2].split("-")
+        )
         athleteInfo[1] = grade[1:]
         athleteInfo[2] = year[:-1]
 
@@ -247,8 +250,8 @@ class TfrrsApi:
 
 
 if __name__ == "__main__":
-    #Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
-    #Test = TfrrsApi("6092256", "RPI", "Patrick Butler")
-    Test = TfrrsApi("5997832", "RPI", "Alex Skender")
+    Test = TfrrsApi("6092422", "RPI", "Mark Shapiro")
+    # Test = TfrrsApi("6092256", "RPI", "Patrick Butler")
+    # Test = TfrrsApi("5997832", "RPI", "Alex Skender")
     out = Test.parse()
     print(out)
