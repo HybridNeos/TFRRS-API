@@ -1,8 +1,10 @@
 # TFRRS-API
-Will provides a pseudo API for TFRRS where it returns results for an athlete as a JSON
+Will provides a pseudo API to get TFRRS information on Individuals or Teams
 
 # Function arguments
-Name, Id
+Individual: Id, School, Name
+
+Team: State, Gender, Name
 
 # Sample output
 Looks like ...
