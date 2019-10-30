@@ -13,7 +13,7 @@ class Athlete:
         if school:
             url += school + "/"
         if name:
-            url += name.replace(" ", "_") + ".html"
+            url += name.replace(" ", "_")
 
         # Get the response
         headers = {
@@ -47,11 +47,12 @@ class Athlete:
             self.parseMeetResults(dfs[1:])
 
             # Return
-            return json.dumps(self.data, indent=4)
+            return json.dumps(self.data, indent=4, default=int)
 
         else:
             raise Exception("No HTML loaded. Retry with a different ID")
 
+    # TODO: Get XC ids and make sure everything is right
     def getMeetIds(self):
         links = self.soup.find_all("a")
         IDs = []
@@ -67,6 +68,7 @@ class Athlete:
 
         return IDs
 
+    # REMOVE THIS
     def notCrossCountry(self, df):
         return "K" not in str(df.iloc[0, 0])
 
@@ -89,20 +91,29 @@ class Athlete:
         )
         df.columns = ["Event", "Mark", "Place", "Round"]
 
-        # Settle columns
+        # Fix up the dataframe
         df["Mark"] = df["Mark"].apply(
-            lambda mark: self.parseEventMark(
-                df["Event"][df[df["Mark"] == mark].index.item()], mark
-            )
+            lambda mark: self.parseEventMark(mark)
         )
         df["Place"] = df["Place"].fillna("N/A")
         df["Round"] = [
             "F" if "(F)" in row else ("P" if "(P)" in row else "N/A")
             for row in df["Place"]
         ]
+
+        def onlyNumber(place):
+            # Remove last four digits (the round details) and take only digits
+            number = ""
+            for char in place[0:-4]:
+                if not char.isalpha():
+                    number += char
+                else:
+                    return int(number)
+
         df["Place"] = [
-            row if row == "N/A" else row[0 : len(row) - 4] for row in df["Place"]
+            row if row == "N/A" else onlyNumber(row) for row in df["Place"]
         ]
+
         df.set_index("Event", inplace=True)
         df.index = [str(event) for event in df.index]
 
@@ -203,11 +214,25 @@ class Athlete:
         else:
             return Date, Date
 
-    def parseEventMark(self, eventType, mark):
-        if eventType in ["SP", "DT", "HT", "WT", "JT", "LJ", "TJ"]:
-            return mark if mark.isalpha() else mark.split(" ")[0]
-        else:
+    def parseEventMark(self, mark):
+        # Some results are just the float
+        if isinstance(mark, float):
+            return str(mark)
+        # FOUL, ND, NH, FS
+        elif mark.isalpha():
             return mark
+        else:
+            #Don't want feet conversion or wind right now
+            endChars = ["m", "w", "("]
+            for char in endChars:
+                if char in mark:
+                    return mark[0:mark.index(char)]
+
+        return mark
+        #if eventType in ["SP", "DT", "HT", "WT", "JT", "LJ", "TJ"]:
+        #    return mark if mark.isalpha() else mark.split(" ")[0]
+        #else:
+        #    return mark
 
     def parsePersonalRecords(self, df):
         # Create the np array to fill in
@@ -231,15 +256,12 @@ class Athlete:
 
         # Clean up the dataframe
         PRs["Mark"] = PRs["Mark"].apply(
-            lambda mark: self.parseEventMark(
-                PRs["Event"][PRs[PRs["Mark"] == mark].index.item()], mark
-            )
+            lambda mark: self.parseEventMark(mark)
         )
-
-        # Remove XC PRs
         PRs.set_index("Event", inplace=True)
-        XC = list(filter(lambda event: "XC" in event, PRs.index))
-        PRs.drop(XC, inplace=True)
+
+        # Convert the index to string and remove wind/feet details
+        PRs.index = [str(event) for event in PRs.index]
 
         # Put it into data
         #   ["Mark"] used since column name persists
@@ -250,7 +272,9 @@ def AthleteTfrrs(ID, School=None, Name=None):
     return AthleteResults.parse()
 
 if __name__ == "__main__":
-    # Test = AthleteTfrrs("6092422", "RPI", "Mark Shapiro")
-    # Test = AthleteTfrrs("6092256", "RPI", "Patrick Butler")
-    Test = AthleteTfrrs("5997832", "RPI", "Alex Skender")
+    Test = AthleteTfrrs("6092422", "RPI", "Mark Shapiro")
+    #Test = AthleteTfrrs("6092256", "RPI", "Patrick Butler")
+    #Test = AthleteTfrrs("5997832", "RPI", "Alex Skender")
+    #Test = AthleteTfrrs("6092450", "RPI", "Zaire Wilson")
+    #Test = AthleteTfrrs("6996057", "RPI", "Elizabeth Evans")
     print(Test)

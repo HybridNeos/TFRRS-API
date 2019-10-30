@@ -45,9 +45,9 @@ class Team:
 
             # Get the basic three tables
             self.getMainInformation(dfs)
-            # TODO: add to internal df
 
             # TODO: Get region, more teams, season
+            return json.dumps(self.data, indent=4)
 
         else:
             raise Exception("No HTML loaded. Retry with a different information")
@@ -117,13 +117,16 @@ class Team:
         # off by 1
         MeetIDs = pd.Series(self.MeetIDs)
         LatestResults = pd.concat((LatestResults, MeetIDs.rename("Meet ID")), axis=1)
-        print(LatestResults)
 
+        # Add them back
+        self.data["Roster"] = Roster.to_dict()
+        self.data["Latest Results"] = LatestResults.to_dict()
+        self.data["Top Marks"] = TopMarks.to_dict()
 
 def TeamTfrrs(State, Gender, Name):
     TeamResults = Team(State, Gender, Name)
     return TeamResults.parse()
 
-
 if __name__ == "__main__":
     Test = TeamTfrrs("NY", "M", "RPI")
+    print(Test)
