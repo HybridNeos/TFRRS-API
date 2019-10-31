@@ -21,39 +21,76 @@ class Athlete:
         }
         response = requests.get(url, headers=headers)
 
+        # Create the attributes and leave them blank
+        self.data = None
+        self.soup = None
+        self.dfs = None
+
         # Handle the response
         if response.status_code < 300 and response.status_code >= 200:
             # panda's read_html doesn't accept percent colspan arguments
             self.HTML = response.text.replace('colspan="100%"', 'colspan="3"')
-
         else:
             self.HTML = None
             raise Exception("Could not retrieve", response.status_code)
 
-    def parse(self):
+    def getPersonalRecords(self):
+        # If not created already get the dataframes
+        if not self.dfs:
+            self.dfs = pd.read_html(self.HTML)
+        df = self.dfs[0]
+
+        # Create the np array to fill in
+        numLeft = sum(pd.notnull(df.iloc[:, 0]))
+        numRight = sum(pd.notnull(df.iloc[:, 2]))
+        numEvents = numLeft + numRight
+        PRs = empty([numEvents, 2], dtype=object)
+
+        # Fill in the array
+        for i in range(0, df.shape[0]):
+            PRs[i, 0] = df.iloc[i, 0]
+            PRs[i, 1] = df.iloc[i, 1]
+
+            if pd.notnull(df.iloc[i, 2]):
+                PRs[i + numLeft, 0] = df.iloc[i, 2]
+                PRs[i + numLeft, 1] = df.iloc[i, 3]
+
+        # Convert to dataframe
+        PRs = pd.DataFrame(PRs)
+        PRs.columns = ["Event", "Mark"]
+
+        # Clean up the dataframe
+        PRs["Mark"] = PRs["Mark"].apply(lambda mark: self.parseEventMark(mark))
+        PRs.set_index("Event", inplace=True)
+
+        # Convert the index to string and remove wind/feet details
+        PRs.index = [str(event) for event in PRs.index]
+
+        # Put it into data
+        #   ["Mark"] used since column name persists
+        return json.dumps(PRs.to_dict()["Mark"], indent=4)
+
+    def getAll(self):
         if self.HTML:
             # Setup
-            dfs = pd.read_html(self.HTML)
-            self.data = OrderedDict()
-            self.soup = BeautifulSoup(self.HTML, "html5lib")
+            data = json.loads(self.getAthleteInfo())
 
             # Get athlete info
-            self.getAthleteInfo()
-
-            # PRs
-            self.parsePersonalRecords(dfs[0])
+            data["Personal Records"] = json.loads(self.getPersonalRecords())
 
             # Meet results
-            self.parseMeetResults(dfs[1:])
+            data["Meet Results"] = json.loads(self.getMeets())
 
             # Return
-            return json.dumps(self.data, indent=4, default=int)
+            return json.dumps(data, indent=4)
 
         else:
             raise Exception("No HTML loaded. Retry with a different ID")
 
     # TODO: Get XC ids and make sure everything is right
     def getMeetIds(self):
+        if not self.soup:
+            self.soup = BeautifulSoup(self.HTML, "html5lib")
         links = self.soup.find_all("a")
         IDs = []
 
@@ -72,7 +109,7 @@ class Athlete:
     def notCrossCountry(self, df):
         return "K" not in str(df.iloc[0, 0])
 
-    def parseOneMeet(self, df, ID):
+    def getOneMeet(self, df, ID):
         # Get meet name and date
         dateStart = re.search(self.dateRegex, df.columns[0]).start()
         Meet = df.columns[0][:dateStart].rstrip()
@@ -96,6 +133,9 @@ class Athlete:
             lambda mark: self.parseEventMark(mark)
         )
         df["Place"] = df["Place"].fillna("N/A")
+
+        # TODO // Clean this up if possible
+
         df["Round"] = [
             "F" if "(F)" in row else ("P" if "(P)" in row else "N/A")
             for row in df["Place"]
@@ -118,17 +158,17 @@ class Athlete:
         df.index = [str(event) for event in df.index]
 
         # JSON to meet results
-        meetInfo["Results"] = OrderedDict()
+        meetInfo["Results"] = {}
         for i in range(0, df.shape[0]):
             meetInfo["Results"][df.index[i]] = df.iloc[i, :].to_list()
 
         # add into data
-        self.data["Meet Results"][ID] = meetInfo
+        return meetInfo
 
-    def parseMeetResults(self, dfs):
-        # Setup
-        self.data["Result Format"] = "Event: [Mark, Place, Round]"
-        self.data["Meet Results"] = OrderedDict()
+    def getMeets(self):
+        if not self.dfs:
+            self.dfs = pd.read_html(self.HTML)
+        dfs = self.dfs[1:]
 
         # Since more than meet results are read in, use regex to determine when they stop
         self.dateRegex = "[A-Z][a-z]{2} \d{1,2}(-\d{1,2}){0,1},"
@@ -141,13 +181,19 @@ class Athlete:
         IDs = self.getMeetIds()
         i = 0
 
-        # Loop
+        # Loop getting the meets
+        meetData = {}
         for df in dfs[1:firstNonResult]:
             if self.notCrossCountry(df):
-                self.parseOneMeet(df, IDs[i])
+                meetData[IDs[i]] = self.getOneMeet(df, IDs[i])
                 i += 1
 
+        return json.dumps(meetData, indent=4, default=int)
+
     def getAthleteInfo(self):
+        if not self.soup:
+            self.soup = BeautifulSoup(self.HTML, "html5lib")
+
         # Use beautifulsoup to find the proper section and extract the text
         athleteInfo = (
             self.soup.find("div", class_="panel-heading")
@@ -170,10 +216,7 @@ class Athlete:
         athleteInfo[2] = year[:-1]
 
         # Put it into data
-        self.data["Name"] = athleteInfo[0]
-        self.data["Grade"] = athleteInfo[1]
-        self.data["Year"] = athleteInfo[2]
-        self.data["School"] = athleteInfo[3]
+        return json.dumps({"Name": athleteInfo[0], "Grade": athleteInfo[1], "Year": athleteInfo[2], "School": athleteInfo[3]})
 
     def parseDates(self, Date):
         if "/" in Date:
@@ -229,52 +272,12 @@ class Athlete:
                     return mark[0:mark.index(char)]
 
         return mark
-        #if eventType in ["SP", "DT", "HT", "WT", "JT", "LJ", "TJ"]:
-        #    return mark if mark.isalpha() else mark.split(" ")[0]
-        #else:
-        #    return mark
-
-    def parsePersonalRecords(self, df):
-        # Create the np array to fill in
-        numLeft = sum(pd.notnull(df.iloc[:, 0]))
-        numRight = sum(pd.notnull(df.iloc[:, 2]))
-        numEvents = numLeft + numRight
-        PRs = empty([numEvents, 2], dtype=object)
-
-        # Fill in the array
-        for i in range(0, df.shape[0]):
-            PRs[i, 0] = df.iloc[i, 0]
-            PRs[i, 1] = df.iloc[i, 1]
-
-            if pd.notnull(df.iloc[i, 2]):
-                PRs[i + numLeft, 0] = df.iloc[i, 2]
-                PRs[i + numLeft, 1] = df.iloc[i, 3]
-
-        # Convert to dataframe
-        PRs = pd.DataFrame(PRs)
-        PRs.columns = ["Event", "Mark"]
-
-        # Clean up the dataframe
-        PRs["Mark"] = PRs["Mark"].apply(
-            lambda mark: self.parseEventMark(mark)
-        )
-        PRs.set_index("Event", inplace=True)
-
-        # Convert the index to string and remove wind/feet details
-        PRs.index = [str(event) for event in PRs.index]
-
-        # Put it into data
-        #   ["Mark"] used since column name persists
-        self.data["College Bests"] = PRs.to_dict()["Mark"]
-
-def AthleteTfrrs(ID, School=None, Name=None):
-    AthleteResults = Athlete(ID, School, Name)
-    return AthleteResults.parse()
 
 if __name__ == "__main__":
-    Test = AthleteTfrrs("6092422", "RPI", "Mark Shapiro")
-    #Test = AthleteTfrrs("6092256", "RPI", "Patrick Butler")
-    #Test = AthleteTfrrs("5997832", "RPI", "Alex Skender")
-    #Test = AthleteTfrrs("6092450", "RPI", "Zaire Wilson")
-    #Test = AthleteTfrrs("6996057", "RPI", "Elizabeth Evans")
-    print(Test)
+    #Test = Athlete("6092422", "RPI", "Mark Shapiro")
+    #Test = Athlete("6092256", "RPI", "Patrick Butler")
+    #Test = Athlete("5997832", "RPI", "Alex Skender")
+    #Test = Athlete("6092450", "RPI", "Zaire Wilson")
+    Test = Athlete("6996057", "RPI", "Elizabeth Evans")
+    #Test = Athlete("6092422", "RPI", "Mark Shapiro")
+    print(Test.getAll())
