@@ -28,29 +28,60 @@ class TestTfrrsApi(unittest.TestCase):
         except Exception as e:
             raise e
 
-    #def test_getAthleteInfo(self):
+    def test_getAthleteInfo(self):
+        self.assertEqual(
+            self.Mark.getAthleteInfo(),
+            json.dumps(
+                {
+                    "Name": "Mark Shapiro",
+                    "Grade": "JR", "Year": 3,
+                    "School": "RPI"
+                },
+                indent=4,
+            ),
+        )
 
+        self.assertEqual(
+            self.Alex.getAthleteInfo(),
+            json.dumps(
+                {
+                    "Name": "Alex Skender",
+                    "Grade": "Redshirt",
+                    "Year": "Unattached",
+                    "School": "RPI",
+                },
+                indent=4,
+            ),
+        )
+
+        # TODO: Get a GR grade and handle graduates test case
 
     def test_getPRs(self):
         self.assertEqual(
             self.Mark.getPersonalRecords(),
             json.dumps(
-                {"SP": "15.38", "DT": "46.96", "HT": "51.19", "WT": "17.42"}, indent=4
-            )
+                {
+                    "SP": 15.38,
+                    "DT": 46.96,
+                    "HT": 51.19,
+                    "WT": 17.42
+                },
+                indent=4
+            ),
         )
 
         self.assertEqual(
             self.Zaire.getPersonalRecords(),
             json.dumps(
                 {
-                    "60": "7.14",
-                    "100": "11.22",
-                    "200": "23.90",
-                    "HJ": "1.76",
-                    "LJ": "6.57",
+                    "60": 7.14,
+                    "100": 11.22,
+                    "200": 23.90,
+                    "HJ": 1.76,
+                    "LJ": 6.57
                 },
                 indent=4,
-            )
+            ),
         )
 
         self.assertEqual(
@@ -67,7 +98,7 @@ class TestTfrrsApi(unittest.TestCase):
                     "7.8K (XC)": "28:09.3",
                 },
                 indent=4,
-            )
+            ),
         )
 
 
