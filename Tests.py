@@ -1,7 +1,7 @@
 from AthleteTfrrs import Athlete
 import unittest
 import json
-
+from concurrent.futures import ThreadPoolExecutor
 
 class TestTfrrsApi(unittest.TestCase):
 
@@ -9,26 +9,32 @@ class TestTfrrsApi(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestTfrrsApi, self).__init__(*args, **kwargs)
 
-        # Get Information
-        self.Mark = Athlete("6092422", "RPI", "Mark Shapiro")
-        self.Pat = Athlete("6092256", "RPI", "Patrick Butler")
-        self.Skender = Athlete("5997832", "RPI", "Alex Skender")
-        self.Zaire = Athlete("6092450", "RPI", "Zaire Wilson")
+        # Get athletes for tests
+        IDs = ["6092422", "6092256", "5997832", "6092450"]
+        with ThreadPoolExecutor(max_workers=len(IDs)) as executor:
+            athletes = []
+            for result in executor.map(Athlete, IDs):
+                athletes.append(result)
+            self.Mark, self.Pat, self.Skender, self.Zaire = athletes
 
-    # With invalid arguments should raise an exception
+    # Make sure an exception is raised with invalid arguments
     def test_urlException(self):
-        self.assertRaises(Exception, Athlete, ("60924888", "Nowhere", "No one"))
+        self.assertRaises(Exception, Athlete, ("694201337"))
+        self.assertRaises(Exception, Athlete, ("6092422", "No where"))
+        self.assertRaises(Exception, Athlete, ("6092422", "RPI", "No one"))
 
-    # With that it can get html from all types (exception if failed)
     def test_urlAllArguments(self):
+        # Make sure it works with all three configurations
         try:
             Test1 = Athlete("6092422")
             Test2 = Athlete("6092422", "RPI")
             Test3 = Athlete("6092422", "RPI", "Mark Shapiro")
+            Test4 = Athlete("6092422", None, "Mark Shapiro")
         except Exception as e:
             raise e
 
     def test_getAthleteInfo(self):
+        # Standard case
         self.assertEqual(
             self.Mark.getAthleteInfo(),
             json.dumps(
@@ -41,6 +47,7 @@ class TestTfrrsApi(unittest.TestCase):
             ),
         )
 
+        # Redshirt special case
         self.assertEqual(
             self.Alex.getAthleteInfo(),
             json.dumps(
@@ -57,6 +64,7 @@ class TestTfrrsApi(unittest.TestCase):
         # TODO: Get a GR grade and handle graduates test case
 
     def test_getPRs(self):
+        # Throws test
         self.assertEqual(
             self.Mark.getPersonalRecords(),
             json.dumps(
@@ -70,6 +78,7 @@ class TestTfrrsApi(unittest.TestCase):
             ),
         )
 
+        # Jumps/sprints test
         self.assertEqual(
             self.Zaire.getPersonalRecords(),
             json.dumps(
@@ -84,6 +93,7 @@ class TestTfrrsApi(unittest.TestCase):
             ),
         )
 
+        # Distance/xc test
         self.assertEqual(
             self.Skender.getPersonalRecords(),
             json.dumps(
