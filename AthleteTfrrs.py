@@ -135,7 +135,6 @@ class Athlete:
         df["Place"] = df["Place"].fillna("N/A")
 
         # TODO // Clean this up if possible
-
         df["Round"] = [
             "F" if "(F)" in row else ("P" if "(P)" in row else "N/A")
             for row in df["Place"]
@@ -278,6 +277,7 @@ if __name__ == "__main__":
     #Test = Athlete("6092256", "RPI", "Patrick Butler")
     #Test = Athlete("5997832", "RPI", "Alex Skender")
     #Test = Athlete("6092450", "RPI", "Zaire Wilson")
-    Test = Athlete("6996057", "RPI", "Elizabeth Evans")
+    #Test = Athlete("6996057", "RPI", "Elizabeth Evans")
     #Test = Athlete("6092422", "RPI", "Mark Shapiro")
+    Test = Athlete("6092457")
     print(Test.getAll())
