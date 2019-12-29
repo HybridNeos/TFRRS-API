@@ -4,7 +4,7 @@ import json
 import re
 from collections import OrderedDict
 from bs4 import BeautifulSoup
-from AthleteTfrrs import AthleteTfrrs
+from AthleteTfrrs import Athlete
 
 
 class Team:

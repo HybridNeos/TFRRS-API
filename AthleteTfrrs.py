@@ -6,6 +6,24 @@ from collections import OrderedDict
 from numpy import empty
 from bs4 import BeautifulSoup
 
+
+def parseEventMark(mark):
+    # Some results are just the float
+    if mark.isalpha():
+        return mark
+    elif mark.replace(".", "").isnumeric():
+        return float(mark)
+    else:
+        # Don't want feet conversion or wind right now
+        endChars = ["m", "w", "("]
+        for char in endChars:
+            if char in mark:
+                return float(mark[0 : mark.index(char)])
+
+    # Unaccounted for
+    return mark
+
+
 class Athlete:
     def __init__(self, ID, school="", name=""):
         # Make the URL
@@ -34,6 +52,41 @@ class Athlete:
             self.HTML = None
             raise Exception("Could not retrieve", response.status_code)
 
+    def getAthleteInfo(self):
+        if not self.soup:
+            self.soup = BeautifulSoup(self.HTML, "html5lib")
+
+        # Use beautifulsoup to find the proper section and extract the text
+        athleteInfo = (
+            self.soup.find("div", class_="panel-heading")
+            .get_text()
+            .replace("\n", "")
+            .strip()
+        )
+        athleteInfo = " ".join(athleteInfo.split())
+        athleteInfo = athleteInfo.replace("RED SHIRT", "REDSHIRT")
+
+        # Format the text into a usable list
+        athleteInfo = athleteInfo.split()
+        athleteInfo[0] = athleteInfo[0] + " " + athleteInfo[1]
+        grade, year = (
+            athleteInfo[2].split("/")
+            if "REDSHIRT" in athleteInfo[2]
+            else athleteInfo[2].split("-")
+        )
+        athleteInfo[1] = grade[1:]
+        athleteInfo[2] = year[:-1]
+
+        # Put it into data
+        return {
+            "Name": athleteInfo[0],
+            "Grade": athleteInfo[1],
+            "Year": int(athleteInfo[2])
+            if athleteInfo[2].isnumeric()
+            else athleteInfo[2],
+            "School": athleteInfo[3],
+        }
+
     def getPersonalRecords(self):
         # If not created already get the dataframes
         if not self.dfs:
@@ -60,29 +113,32 @@ class Athlete:
         PRs.columns = ["Event", "Mark"]
 
         # Clean up the dataframe
-        PRs["Mark"] = PRs["Mark"].apply(lambda mark: self.parseEventMark(mark))
+        PRs["Mark"] = PRs["Mark"].apply(lambda mark: parseEventMark(mark))
         PRs.set_index("Event", inplace=True)
 
         # Convert the index to string and remove wind/feet details
-        PRs.index = [str(event) for event in PRs.index]
+        PRs.index = [
+            (str(event).replace("  ", " ") if event != "10000" else "10,000")
+            for event in PRs.index
+        ]
 
         # Put it into data
         #   ["Mark"] used since column name persists
-        return json.dumps(PRs.to_dict()["Mark"], indent=4)
+        return PRs.to_dict()["Mark"]
 
     def getAll(self):
         if self.HTML:
             # Setup
-            data = json.loads(self.getAthleteInfo())
+            data = self.getAthleteInfo()
 
             # Get athlete info
-            data["Personal Records"] = json.loads(self.getPersonalRecords())
+            data["Personal Records"] = self.getPersonalRecords()
 
             # Meet results
-            data["Meet Results"] = json.loads(self.getMeets())
+            data["Meet Results"] = self.getMeets()
 
             # Return
-            return json.dumps(data, indent=4)
+            return data
 
         else:
             raise Exception("No HTML loaded. Retry with a different ID")
@@ -129,9 +185,7 @@ class Athlete:
         df.columns = ["Event", "Mark", "Place", "Round"]
 
         # Fix up the dataframe
-        df["Mark"] = df["Mark"].apply(
-            lambda mark: self.parseEventMark(mark)
-        )
+        df["Mark"] = df["Mark"].apply(lambda mark: parseEventMark(mark))
         df["Place"] = df["Place"].fillna("N/A")
 
         # TODO // Clean this up if possible
@@ -149,9 +203,7 @@ class Athlete:
                 else:
                     return int(number)
 
-        df["Place"] = [
-            row if row == "N/A" else onlyNumber(row) for row in df["Place"]
-        ]
+        df["Place"] = [row if row == "N/A" else onlyNumber(row) for row in df["Place"]]
 
         df.set_index("Event", inplace=True)
         df.index = [str(event) for event in df.index]
@@ -187,35 +239,7 @@ class Athlete:
                 meetData[IDs[i]] = self.getOneMeet(df, IDs[i])
                 i += 1
 
-        return json.dumps(meetData, indent=4, default=int)
-
-    def getAthleteInfo(self):
-        if not self.soup:
-            self.soup = BeautifulSoup(self.HTML, "html5lib")
-
-        # Use beautifulsoup to find the proper section and extract the text
-        athleteInfo = (
-            self.soup.find("div", class_="panel-heading")
-            .get_text()
-            .replace("\n", "")
-            .strip()
-        )
-        athleteInfo = " ".join(athleteInfo.split())
-        athleteInfo = athleteInfo.replace("RED SHIRT", "REDSHIRT")
-
-        # Format the text into a usable list
-        athleteInfo = athleteInfo.split()
-        athleteInfo[0] = athleteInfo[0] + " " + athleteInfo[1]
-        grade, year = (
-            athleteInfo[2].split("/")
-            if "REDSHIRT" in athleteInfo[2]
-            else athleteInfo[2].split("-")
-        )
-        athleteInfo[1] = grade[1:]
-        athleteInfo[2] = year[:-1]
-
-        # Put it into data
-        return json.dumps({"Name": athleteInfo[0], "Grade": athleteInfo[1], "Year": athleteInfo[2], "School": athleteInfo[3]})
+        return meetData
 
     def parseDates(self, Date):
         if "/" in Date:
@@ -256,28 +280,13 @@ class Athlete:
         else:
             return Date, Date
 
-    def parseEventMark(self, mark):
-        # Some results are just the float
-        if isinstance(mark, float):
-            return str(mark)
-        # FOUL, ND, NH, FS
-        elif mark.isalpha():
-            return mark
-        else:
-            #Don't want feet conversion or wind right now
-            endChars = ["m", "w", "("]
-            for char in endChars:
-                if char in mark:
-                    return mark[0:mark.index(char)]
-
-        return mark
 
 if __name__ == "__main__":
-    #Test = Athlete("6092422", "RPI", "Mark Shapiro")
-    #Test = Athlete("6092256", "RPI", "Patrick Butler")
-    #Test = Athlete("5997832", "RPI", "Alex Skender")
-    #Test = Athlete("6092450", "RPI", "Zaire Wilson")
-    #Test = Athlete("6996057", "RPI", "Elizabeth Evans")
-    #Test = Athlete("6092422", "RPI", "Mark Shapiro")
-    Test = Athlete("6092457")
-    print(Test.getAll())
+    Test = Athlete("6092422", "RPI", "Mark Shapiro")
+    # Test = Athlete("6092256", "RPI", "Patrick Butler")
+    # Test = Athlete("5997832", "RPI", "Alex Skender")
+    # Test = Athlete("6092450", "RPI", "Zaire Wilson")
+    # Test = Athlete("6996057", "RPI", "Elizabeth Evans")
+    # Test = Athlete("6092422", "RPI", "Mark Shapiro")
+
+    Test.getPersonalRecords()
