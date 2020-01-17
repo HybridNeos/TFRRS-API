@@ -91,6 +91,9 @@ class Athlete:
         # If not created already get the dataframes
         if not self.dfs:
             self.dfs = pd.read_html(self.HTML)
+        # Check for no personal records
+        if len(self.dfs) == 0:
+            return {"Has not competed": None}
         df = self.dfs[0]
 
         # Create the np array to fill in
@@ -289,4 +292,4 @@ if __name__ == "__main__":
     # Test = Athlete("6996057", "RPI", "Elizabeth Evans")
     # Test = Athlete("6092422", "RPI", "Mark Shapiro")
 
-    Test.getPersonalRecords()
+    print(Test.getPersonalRecords())
