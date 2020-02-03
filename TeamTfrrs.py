@@ -93,7 +93,7 @@ class Team:
         else:
             raise Exception("No HTML loaded. Retry with different information")
 
-    def getRoster(self):
+    def getRoster(self, asDict=False):
         Roster = self.dfs[1]
         RosterIDs = pd.Series(
             [self.AthleteIDs[name] for name in Roster["NAME"].to_list()]
@@ -101,19 +101,19 @@ class Team:
         # Append IDs to roster
         Roster = pd.concat([Roster, RosterIDs.rename("Athlete ID")], axis=1)
 
-        return Roster.to_dict()
+        return Roster.to_dict() if asDict else Roster
 
 
-    def getLatestResults(self):
+    def getLatestResults(self, asDict=False):
         LatestResults = self.dfs[2]
         MeetIDs = pd.Series(self.MeetIDs)
         # Append Meet IDs to results
         LatestResults = pd.concat((LatestResults, MeetIDs.rename("Meet ID")), axis=1)
 
-        return LatestResults.to_dict()
+        return LatestResults.to_dict() if asDict else LatestResults
 
 
-    def getTopMarks(self):
+    def getTopMarks(self, asDict=False):
         TopMarks = self.dfs[0]
         MarkIDs = pd.Series(
             [
@@ -124,13 +124,8 @@ class Team:
         # Append Athlete IDs to top marks
         TopMarks = pd.concat((TopMarks, MarkIDs.rename("Athlete ID")), axis=1)
 
-        return TopMarks.to_dict()
-
-
-def TeamTfrrs(State, Gender, Name):
-    TeamResults = Team(State, Gender, Name)
-    return TeamResults.getAll()
-
+        return TopMarks.to_dict() if asDict else TopMarks
 
 if __name__ == "__main__":
-    Test = TeamTfrrs("NY", "M", "RPI")
+    Test = Team("NY", "F", "RPI")
+    print(Test.getRoster())
