@@ -3,11 +3,14 @@ import requests
 import json
 import re
 from collections import OrderedDict
-from numpy import empty
+import numpy as np
 from bs4 import BeautifulSoup
 
 
 def parseEventMark(mark):
+    # try to make pandas use float to avoid importing all of numpy
+    if isinstance(mark, np.float64):
+        return float(mark)
     # Some results are just the float
     if mark.isalpha():
         return mark
@@ -100,7 +103,7 @@ class Athlete:
         numLeft = sum(pd.notnull(df.iloc[:, 0]))
         numRight = sum(pd.notnull(df.iloc[:, 2]))
         numEvents = numLeft + numRight
-        PRs = empty([numEvents, 2], dtype=object)
+        PRs = np.empty([numEvents, 2], dtype=object)
 
         # Fill in the array
         for i in range(0, df.shape[0]):
@@ -183,7 +186,7 @@ class Athlete:
 
         # Add a column and rename columns
         df = pd.concat(
-            [df, pd.DataFrame(empty([df.shape[0], 1], dtype=object))], axis=1
+            [df, pd.DataFrame(np.empty([df.shape[0], 1], dtype=object))], axis=1
         )
         df.columns = ["Event", "Mark", "Place", "Round"]
 

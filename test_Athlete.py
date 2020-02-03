@@ -38,18 +38,10 @@ class TestTfrrsApi(unittest.TestCase):
             {"Name": "MARK SHAPIRO", "Grade": "SR", "Year": 4, "School": "RPI"},
         )
 
-        # Redshirt special case
+        # Was redshirt (it worked), now graduated
         self.assertEqual(
-            self.Skender.getAthleteInfo(),
-            {
-                "Name": "ALEX SKENDER",
-                "Grade": "REDSHIRT",
-                "Year": "UNATTACHED",
-                "School": "RPI",
-            }
+            self.Skender.getAthleteInfo(), {"Name": "ALEX SKENDER", "School": "RPI"}
         )
-
-        # TODO: Get a GR grade and handle graduates test case
 
     # Self explanatory
     def test_getPRs(self):

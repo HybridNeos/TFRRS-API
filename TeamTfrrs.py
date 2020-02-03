@@ -9,7 +9,9 @@ from AthleteTfrrs import Athlete
 class Team:
     def __init__(self, State, Gender, Name):
         # Construct the url and make the request
-        url_stub = "http://www.tfrrs.org/teams/{}_college_{}_{}".format(State, Gender.lower(), Name)
+        url_stub = "http://www.tfrrs.org/teams/{}_college_{}_{}".format(
+            State, Gender.lower(), Name
+        )
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.102 Safari/537.36"
         }
@@ -36,7 +38,7 @@ class Team:
             link = str(link)
             if "//www.tfrrs.org/athletes/" in link:
                 link = link[34 : link.index(".html")]
-                link = link.replace("__","_")
+                link = link.replace("__", "_")
                 ID, school, name = link.split("/")
                 first, last = name.split("_")
                 name = last + ", " + first
@@ -103,7 +105,6 @@ class Team:
 
         return Roster.to_dict() if asDict else Roster
 
-
     def getLatestResults(self, asDict=False):
         LatestResults = self.dfs[2]
         MeetIDs = pd.Series(self.MeetIDs)
@@ -111,7 +112,6 @@ class Team:
         LatestResults = pd.concat((LatestResults, MeetIDs.rename("Meet ID")), axis=1)
 
         return LatestResults.to_dict() if asDict else LatestResults
-
 
     def getTopMarks(self, asDict=False):
         TopMarks = self.dfs[0]
@@ -125,6 +125,7 @@ class Team:
         TopMarks = pd.concat((TopMarks, MarkIDs.rename("Athlete ID")), axis=1)
 
         return TopMarks.to_dict() if asDict else TopMarks
+
 
 if __name__ == "__main__":
     Test = Team("NY", "F", "RPI")

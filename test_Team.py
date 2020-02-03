@@ -1,9 +1,10 @@
 from TeamTfrrs import Team
+from AthleteTfrrs import Athlete
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
-class TestTfrrsApi(unittest.TestCase):
 
+class TestTfrrsApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         info = [("NY", "M", "RPI"), ("NY", "F", "RPI")]
@@ -18,8 +19,29 @@ class TestTfrrsApi(unittest.TestCase):
         self.assertEqual(82, len(self.Men.getRoster()))
         self.assertEqual(52, len(self.Women.getRoster()))
 
-    #def test_topMarks(self):
+    # def test_topMarks(self):
     #    pass
+
+    def test_visuallyAllPersonalBests(self):
+        show = True
+        if show:
+            print()
+            IDs = list(self.Men.getRoster()["Athlete ID"].values)
+            Names = list(self.Men.getRoster()["NAME"].values)
+
+            Athletes = []
+            with ThreadPoolExecutor(max_workers=len(IDs)) as executor:
+                for result in executor.map(Athlete, IDs):
+                    Athletes.append(result)
+
+            personalBests = [
+                {name: athlete.getPersonalRecords().keys()}
+                for name, athlete in zip(Names, Athletes)
+            ]
+            for athlete in personalBests:
+                for key in athlete:
+                    print("{}\n{}\n".format(key, list(athlete[key])))
+
 
 if __name__ == "__main__":
     unittest.main()
