@@ -11,11 +11,15 @@ def parseEventMark(mark):
     # try to make pandas use float to avoid importing all of numpy
     if isinstance(mark, np.float64):
         return float(mark)
+
     # Some results are just the float
     if mark.isalpha():
         return mark
+
+    # possibly irrelevant
     elif mark.replace(".", "").isnumeric():
-        return float(mark)
+        return float(mark.replace(".", ""))
+
     else:
         # Don't want feet conversion or wind right now
         endChars = ["m", "w", "("]
@@ -25,6 +29,11 @@ def parseEventMark(mark):
 
     # Unaccounted for
     return mark
+
+
+def parseEventName(name):
+    cleaned = str(name).replace("  ", " ") if name != "10000" else "10,000"
+    return cleaned.replace(".0", "")
 
 
 class Athlete:
@@ -121,12 +130,7 @@ class Athlete:
         # Clean up the dataframe
         PRs["Mark"] = PRs["Mark"].apply(lambda mark: parseEventMark(mark))
         PRs.set_index("Event", inplace=True)
-
-        # Convert the index to string and remove wind/feet details
-        PRs.index = [
-            (str(event).replace("  ", " ") if event != "10000" else "10,000")
-            for event in PRs.index
-        ]
+        PRs.index = [parseEventName(event) for event in PRs.index]
 
         # Put it into data
         #   ["Mark"] used since column name persists

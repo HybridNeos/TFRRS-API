@@ -26,8 +26,8 @@ class TestTfrrsApi(unittest.TestCase):
         show = True
         if show:
             print()
-            IDs = list(self.Men.getRoster()["Athlete ID"].values)
-            Names = list(self.Men.getRoster()["NAME"].values)
+            IDs = list(self.Women.getRoster()["Athlete ID"].values)
+            Names = list(self.Women.getRoster()["NAME"].values)
 
             Athletes = []
             with ThreadPoolExecutor(max_workers=len(IDs)) as executor:
