@@ -7,12 +7,12 @@ from concurrent.futures import ThreadPoolExecutor
 class TestTfrrsApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        IDs = ["6092422", "6092256", "5997832", "6092450"]
+        IDs = ["6092422", "6092256", "5997815", "6092450"]
         with ThreadPoolExecutor(max_workers=len(IDs)) as executor:
             athletes = []
             for result in executor.map(Athlete, IDs):
                 athletes.append(result)
-        cls.Mark, cls.Pat, cls.Skender, cls.Zaire = athletes
+        cls.Mark, cls.Pat, cls.Noah, cls.Zaire = athletes
 
     # Make sure an exception is raised with invalid arguments
     def test_urlException(self):
@@ -38,11 +38,6 @@ class TestTfrrsApi(unittest.TestCase):
             {"Name": "MARK SHAPIRO", "Grade": "SR", "Year": 4, "School": "RPI"},
         )
 
-        # Was redshirt (it worked), now graduated
-        self.assertEqual(
-            self.Skender.getAthleteInfo(), {"Name": "ALEX SKENDER", "School": "RPI"}
-        )
-
     # Self explanatory
     def test_getPRs(self):
         # Throws test
@@ -54,23 +49,52 @@ class TestTfrrsApi(unittest.TestCase):
         # Jumps/sprints test
         self.assertEqual(
             self.Zaire.getPersonalRecords(),
-            {"60": 7.14, "100": 11.22, "200": 23.90, "HJ": 1.76, "LJ": 6.57},
+            {"60": 7.11, "100": 11.22, "200": 23.90, "HJ": 1.76, "LJ": 6.57},
         )
 
         # Distance/xc test
         self.assertEqual(
-            self.Skender.getPersonalRecords(),
+            self.Noah.getPersonalRecords(),
             {
-                "1500": "4:40.25",
-                "MILE": "4:49.62",
-                "3000": "9:18.27",
-                "5000": "15:26.67",
-                "10,000": "32:33.06",
-                "6K (XC)": "21:19.3",
-                "8K (XC)": "26:20.4",
-                "7.8K (XC)": "28:09.3",
+                "800": "1:55.40",
+                "1000": "2:34.79",
+                "1500": "3:49.04",
+                "MILE": "4:05.10",
+                "3000": "8:18.67",
+                "5000": "14:26.50",
+                "6K (XC)": "20:27.8",
+                "7.8K (XC)": "25:20.8",
+                "8K (XC)": "24:55.5",
             },
         )
+
+        multi = self.Pat.getPersonalRecords()
+        self.assertEqual(
+            multi,
+            {
+                "60": 7.27,
+                "100": 11.42,
+                "200": 23.54,
+                "400": 50.21,
+                "500": "1:08.56",
+                "1000": "2:52.92",
+                "1500": "4:40.11",
+                "60H": 9.42,
+                "110H": 17.24,
+                "400H": 57.76,
+                "HJ": 1.68,
+                "PV": 2.95,
+                "LJ": 6.91,
+                "SP": 10.59,
+                "DT": 30.20,
+                "JT": 53.59,
+                "HEP": 4192,
+                "DEC": 5624
+            }
+        )
+
+        self.assertTrue(isinstance(multi["HEP"], int))
+        self.assertTrue(isinstance(multi["DEC"], int))
 
 
 if __name__ == "__main__":

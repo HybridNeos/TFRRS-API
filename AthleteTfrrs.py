@@ -18,7 +18,7 @@ def parseEventMark(mark):
 
     # possibly irrelevant
     elif mark.replace(".", "").isnumeric():
-        return float(mark.replace(".", ""))
+        return float(mark)
 
     else:
         # Don't want feet conversion or wind right now
@@ -129,6 +129,9 @@ class Athlete:
 
         # Clean up the dataframe
         PRs["Mark"] = PRs["Mark"].apply(lambda mark: parseEventMark(mark))
+        for i in range(len(PRs)):
+            if PRs["Event"][i] in ("HEP", "PENT", "DEC"): # make this neater
+                PRs["Mark"][i] = int(PRs["Mark"][i])
         PRs.set_index("Event", inplace=True)
         PRs.index = [parseEventName(event) for event in PRs.index]
 
