@@ -89,8 +89,8 @@ class TestTfrrsApi(unittest.TestCase):
                 "DT": 30.20,
                 "JT": 53.59,
                 "HEP": 4192,
-                "DEC": 5624
-            }
+                "DEC": 5624,
+            },
         )
 
         self.assertTrue(isinstance(multi["HEP"], int))

@@ -2,19 +2,22 @@ import pandas as pd
 import requests
 import json
 import re
-from collections import OrderedDict
 import numpy as np
 from bs4 import BeautifulSoup
 
 
 def parseEventMark(mark):
     # try to make pandas use float to avoid importing all of numpy
-    if isinstance(mark, np.float64):
+    if isinstance(mark, np.float64) or isinstance(mark, float):
         return float(mark)
 
     # Some results are just the float
     if mark.isalpha():
         return mark
+
+    # Possible edge case - false start with wind
+    if "FS" in mark:
+        return "FS"
 
     # possibly irrelevant
     elif mark.replace(".", "").isnumeric():
@@ -22,7 +25,7 @@ def parseEventMark(mark):
 
     else:
         # Don't want feet conversion or wind right now
-        endChars = ["m", "w", "("]
+        endChars = ["m", "W", "w", "(", "W"]
         for char in endChars:
             if char in mark:
                 return float(mark[0 : mark.index(char)])
@@ -115,7 +118,7 @@ class Athlete:
         PRs = np.empty([numEvents, 2], dtype=object)
 
         # Fill in the array
-        for i in range(0, df.shape[0]):
+        for i in range(df.shape[0]):
             PRs[i, 0] = df.iloc[i, 0]
             PRs[i, 1] = df.iloc[i, 1]
 
@@ -186,7 +189,7 @@ class Athlete:
         startDate, endDate = self.parseDates(Date)
 
         # JSON the meet info
-        meetInfo = OrderedDict()
+        meetInfo = {}
         meetInfo["Meet Name"] = Meet
         meetInfo["Start Date"] = startDate
         meetInfo["End Date"] = endDate
@@ -295,11 +298,11 @@ class Athlete:
 
 
 if __name__ == "__main__":
-    Test = Athlete("6092422", "RPI", "Mark Shapiro")
-    # Test = Athlete("6092256", "RPI", "Patrick Butler")
+    # Test = Athlete("6092422", "RPI", "Mark Shapiro")
+    Test = Athlete("6092256", "RPI", "Patrick Butler")
     # Test = Athlete("5997832", "RPI", "Alex Skender")
     # Test = Athlete("6092450", "RPI", "Zaire Wilson")
     # Test = Athlete("6996057", "RPI", "Elizabeth Evans")
     # Test = Athlete("6092422", "RPI", "Mark Shapiro")
 
-    print(Test.getPersonalRecords())
+    Test.getMeets()
