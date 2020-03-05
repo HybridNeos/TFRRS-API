@@ -43,13 +43,13 @@ class TestTfrrsApi(unittest.TestCase):
         # Throws test
         self.assertEqual(
             self.Mark.getPersonalRecords(),
-            {"SP": 15.38, "DT": 46.96, "HT": 51.19, "WT": 17.52},
+            {"SP": 15.80, "DT": 46.96, "HT": 51.19, "WT": 17.72},
         )
 
         # Jumps/sprints test
         self.assertEqual(
             self.Zaire.getPersonalRecords(),
-            {"60": 7.11, "100": 11.22, "200": 23.90, "HJ": 1.76, "LJ": 6.57},
+            {"60": 7.03, "100": 11.22, "200": 23.90, "HJ": 1.76, "LJ": 6.79},
         )
 
         # Distance/xc test

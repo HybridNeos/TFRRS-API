@@ -133,7 +133,7 @@ class Athlete:
         # Clean up the dataframe
         PRs["Mark"] = PRs["Mark"].apply(lambda mark: parseEventMark(mark))
         for i in range(len(PRs)):
-            if PRs["Event"][i] in ("HEP", "PENT", "DEC"): # make this neater
+            if PRs["Event"][i] in ("HEP", "PENT", "DEC"):  # make this neater
                 PRs["Mark"][i] = int(PRs["Mark"][i])
         PRs.set_index("Event", inplace=True)
         PRs.index = [parseEventName(event) for event in PRs.index]
@@ -257,6 +257,18 @@ class Athlete:
 
         return meetData
 
+    def timesCompetedPerEvent(self):
+        meetData = self.getMeets()
+        timesCompeted = {}
+        for meet in meetData.values():
+            # data seems to only get one if prelims and finals are ran same day
+            for event in np.unique(list(meet["Results"].keys())):
+                timesCompeted[event] = (
+                    1 if event not in timesCompeted else timesCompeted[event] + 1
+                )
+
+        return timesCompeted
+
     def parseDates(self, Date):
         if "/" in Date:
 
@@ -299,10 +311,9 @@ class Athlete:
 
 if __name__ == "__main__":
     # Test = Athlete("6092422", "RPI", "Mark Shapiro")
-    Test = Athlete("6092256", "RPI", "Patrick Butler")
+    # Test = Athlete("6092256", "RPI", "Patrick Butler")
     # Test = Athlete("5997832", "RPI", "Alex Skender")
     # Test = Athlete("6092450", "RPI", "Zaire Wilson")
     # Test = Athlete("6996057", "RPI", "Elizabeth Evans")
-    # Test = Athlete("6092422", "RPI", "Mark Shapiro")
 
-    Test.getMeets()
+    Test.timesCompetedPerEvent()
