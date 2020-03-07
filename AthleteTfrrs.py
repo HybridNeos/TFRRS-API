@@ -235,6 +235,8 @@ class Athlete:
     def getMeets(self):
         if not self.dfs:
             self.dfs = pd.read_html(self.HTML)
+        if len(self.dfs) == 0:
+            return {}
         dfs = self.dfs[1:]
 
         # Since more than meet results are read in, use regex to determine when they stop
@@ -257,6 +259,9 @@ class Athlete:
 
     def timesCompetedPerEvent(self):
         meetData = self.getMeets()
+        if not meetData:
+            return {}
+
         timesCompeted = {}
         for meet in meetData.values():
             # data seems to only get one if prelims and finals are ran same day
@@ -313,4 +318,5 @@ if __name__ == "__main__":
     # Test = Athlete("5997832", "RPI", "Alex Skender")
     # Test = Athlete("6092450", "RPI", "Zaire Wilson")
     # Test = Athlete("6996057", "RPI", "Elizabeth Evans")
+
     print(Test.timesCompetedPerEvent())
