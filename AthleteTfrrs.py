@@ -168,7 +168,7 @@ class Athlete:
 
         # Pull the meet ID from href URLs
         for link in links:
-            if re.search('href="//www.tfrrs.org/results/\d{5,6}/\w+_', str(link)):
+            if re.search('href="//www.tfrrs.org/results/\d{5,6}/\w+,{0,1}_', str(link)):
                 link = str(link)
                 idStart = re.search("/results/\d{5,6}/", link).start() + len(
                     "/results/"
@@ -241,19 +241,17 @@ class Athlete:
         self.dateRegex = "[A-Z][a-z]{2} \d{1,2}(-\d{1,2}){0,1},"
         firstNonResult = [
             True if (re.search(self.dateRegex, df.columns[0])) else False
-            for df in dfs[1:]
-        ].index(False) + 1
+            for df in dfs
+        ].index(False)
 
         # Get the meet IDs ahead of time and pass that to the JSON creating function
         IDs = self.getMeetIds()
-        i = 0
 
         # Loop getting the meets
         meetData = {}
-        for df in dfs[1:firstNonResult]:
+        for df, ID in zip(dfs[:firstNonResult], IDs):
             if self.notCrossCountry(df):
-                meetData[IDs[i]] = self.getOneMeet(df, IDs[i])
-                i += 1
+                meetData[ID] = self.getOneMeet(df, ID)
 
         return meetData
 
@@ -310,10 +308,9 @@ class Athlete:
 
 
 if __name__ == "__main__":
-    # Test = Athlete("6092422", "RPI", "Mark Shapiro")
+    Test = Athlete("6092422", "RPI", "Mark Shapiro")
     # Test = Athlete("6092256", "RPI", "Patrick Butler")
     # Test = Athlete("5997832", "RPI", "Alex Skender")
     # Test = Athlete("6092450", "RPI", "Zaire Wilson")
     # Test = Athlete("6996057", "RPI", "Elizabeth Evans")
-
-    Test.timesCompetedPerEvent()
+    print(Test.timesCompetedPerEvent())
