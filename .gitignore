@@ -4,3 +4,4 @@ __pycache__/
 .vscode/
 data/html
 tfrrs/
+.ipynb_checkpoints/
