@@ -2,5 +2,5 @@ __pycache__/
 *.csv
 .coverage
 .vscode/
-data/
+data/html
 tfrrs/
